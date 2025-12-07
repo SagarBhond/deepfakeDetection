@@ -1,16 +1,12 @@
+# Base image (full Debian, NOT slim)
+FROM python:3.10
 
-# ============================
-# 1. BUILDER STAGE
-# ============================
-FROM python:3.10-slim AS builder
-
-# Prevent timezone prompts
+# Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies for OpenCV, dlib, torch, face-recognition, etc.
+# Install system dependencies required by TF, Torch, and OpenCV
 RUN apt-get update && apt-get install -y \
     build-essential \
-    cmake \
     libgl1 \
     libglib2.0-0 \
     libsm6 \
@@ -21,41 +17,23 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Working directory
+# Set working directory
 WORKDIR /app
 
-# Copy dependencies file
+# Copy requirements first
 COPY requirements.txt .
 
-# Upgrade pip first
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+# Upgrade pip (important for torch/tf wheels)
+RUN pip install --upgrade pip setuptools wheel
 
-# Install python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN pip install -r requirements.txt --no-cache-dir
 
-
-# ============================
-# 2. FINAL RUNTIME STAGE
-# ============================
-FROM python:3.10-slim
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Only install runtime libs (lighter and faster)
-RUN apt-get update && apt-get install -y \
-    libgl1 \
-    libglib2.0-0 \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Copy dependencies from builder
-COPY --from=builder /usr/local /usr/local
-
-# Copy project files
+# Copy the rest of the project
 COPY . .
 
-EXPOSE 8000
+# Expose port for Flask/Gunicorn
+EXPOSE 5000
 
-CMD ["python", "app.py"]
+# Run Flask or Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]

@@ -1,72 +1,61 @@
-# Multi-stage build for Deepfake Detection System
-FROM python:3.10-slim as builder
 
-# Install system dependencies
+# ============================
+# 1. BUILDER STAGE
+# ============================
+FROM python:3.10-slim AS builder
+
+# Prevent timezone prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies for OpenCV, dlib, torch, face-recognition, etc.
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libgl1-mesa-glx \
+    cmake \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     libgomp1 \
     ffmpeg \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Working directory
 WORKDIR /app
 
-# Copy requirements first for better caching
+# Copy dependencies file
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Upgrade pip first
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Production stage
+# Install python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+# ============================
+# 2. FINAL RUNTIME STAGE
+# ============================
 FROM python:3.10-slim
 
-# Install runtime dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Only install runtime libs (lighter and faster)
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/uploads /app/results /app/logs && \
-    chown -R appuser:appuser /app
-
-# Set working directory
 WORKDIR /app
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy dependencies from builder
+COPY --from=builder /usr/local /usr/local
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Copy project files
+COPY . .
 
-# Switch to non-root user
-USER appuser
+EXPOSE 8000
 
-# Expose port
-EXPOSE 5000
-
-# Environment variables
-ENV PYTHONUNBUFFERED=1
-ENV FLASK_APP=basic_web_app.py
-ENV FLASK_ENV=production
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/api/status')"
-
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "--timeout", "120", "basic_web_app:app"]
-
+CMD ["python", "app.py"]

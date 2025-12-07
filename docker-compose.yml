@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  deepfake-detection:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deepfake-detection-app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - S3_ENABLED=${S3_ENABLED:-true}
+      - S3_BUCKET=${S3_BUCKET:-deepfakeddetection}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-ap-south-1}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./results:/app/results
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - deepfake-network
+
+networks:
+  deepfake-network:
+    driver: bridge
+

@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+venv_new/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+uploads/*
+!uploads/.gitkeep
+results/*
+!results/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Large files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.pth
+*.h5
+*.ckpt
+
+# AWS
+.aws/
+*.pem
+*.zip
+
+# Docker
+.dockerignore
+
+# Environment variables
+.env
+.env.local
+
